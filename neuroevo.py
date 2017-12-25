@@ -24,36 +24,35 @@ class Synapses:  #these are the neural network's weights which are to be evolved
         return self.sigmoid(np.dot(self.weights, x))        
 
 class Organism: #neural network
-    def __init__(self, topology = [49, 100, 2]):
-        [self.input_dimension, self.hidden_dimension, self.output_dimension] = topology
+    def __init__(self, topology, probability):
+        self.p = probability
         self.fitness = 0
+        [self.input_dimension, self.hidden_dimension, self.output_dimension] = topology
         self.l0 = Synapses(self.input_dimension, self.hidden_dimension)
         self.l1 = Synapses(self.hidden_dimension, self.output_dimension)
     
-    def mutate(self, probability):
-        if random.random() <= probability:
+    def mutate(self):
+        if random.random() <= self.p:
             self.l0.weights[random.randint(0, len(self.l0.weights) - 1)] = random.random()  
-        if random.random() <= probability:
+        if random.random() <= self.p:
             self.l1.weights[random.randint(0, len(self.l1.weights) - 1)] = random.random()  
 
-    def think(self, board_position):
-        #input: position of 7x7 board game Isolation as bitstring of 49 elements
+    def think(self, data_in):
+        #input: position of 7x7 board game Isolation as bitstring of 49 elements & the current position of player as (x,y) coordinate
         #output: next move (x,y) coordinate
-        coordinates = self.l1.io( self.l0.io(board_position) )
-        return coordinates
+        data_out = self.l1.io( self.l0.io(data_in) )
+        return data_out
 
 class GA:  # genetic algorithm      
     def __init__(self):
         self.generation = 0
         self.fittest = 0
-        self.total = 0
 
-    def run(self, pop_size = 50, iterations = 100, elitism = .2, pairs = False, mutation = .1):
-        self.elitism = elitism
+    def run(self, topology = [1,3,1], pop_size = 50, iterations = 100, elitism = .2, pairs = False, mutation = .1):
         self.pop_size = pop_size
-        self.mutation = mutation
         self.iterations = iterations
-        self.organisms = [Organism() for i in range(self.pop_size)]
+        self.elitism = elitism
+        self.organisms = [Organism(topology = topology, probability = mutation) for i in range(self.pop_size)]
         for t in range(self.iterations):
             self.tournament(pairs)
             self.display_stats()
@@ -84,13 +83,13 @@ class GA:  # genetic algorithm
         return score[0], score[1]
 
     def display_stats(self):
-        self.total = 0
+        total = 0
         for organism in self.organisms:
             if organism.fitness > self.fittest:
                 self.fittest = organism.fitness
-            self.total += organism.fitness
+            total += organism.fitness
         self.generation += 1
-        print('> GEN:',self.generation,'BEST:',self.fittest,'AVG:',float(self.total / self.pop_size))
+        print('> GEN:',self.generation,'BEST:',self.fittest,'AVG:',float(total / self.pop_size))
 
     def get_elite(self):
         #keep fittest percentage of organisms
@@ -104,17 +103,18 @@ class GA:  # genetic algorithm
             a = b = 0
             while a == b: a, b = random.randint(0, elite_size - 1), random.randint(0, elite_size - 1)
             child1, child2 = self.crossover(elite[a], elite[b])
-            child1.mutate(self.mutation)
-            child2.mutate(self.mutation)
+            child1.mutate()
+            child2.mutate()
             new_organisms.append(child1)
             new_organisms.append(child2)
         return new_organisms
 
     def crossover(self, parent1, parent2):
-        child1, child2 = Organism(), Organism()
+        topology = [parent1.input_dimension, parent1.hidden_dimension, parent1.output_dimension]
+        child1, child2 = Organism(topology = topology, probability = parent1.p), Organism(topology = topology, probability = parent1.p)
         child1.l0.weights, child1.l1.weights = parent1.l0.weights, parent2.l1.weights 
         child2.l0.weights, child2.l1.weights = parent2.l0.weights, parent1.l1.weights
         return child1, child2
 
 
-GA().run()
+GA().run(topology = [51, 100, 2])
