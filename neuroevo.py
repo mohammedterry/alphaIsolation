@@ -53,7 +53,7 @@ class GA:  # genetic algorithm
         self.pop_size = pop_size
         self.mutation = mutation
         self.iterations = iterations
-        self.organisms = self.populate()
+        self.organisms = [Organism() for i in range(self.pop_size)]
         for t in range(self.iterations):
             self.tournament(pairs)
             self.display_stats()
@@ -71,9 +71,6 @@ class GA:  # genetic algorithm
                     f1, f2 = self.compete(self.organisms[i], self.organisms[j] )
                     self.organisms[i].fitness += f1
                     self.organisms[j].fitness += f2
-
-    def populate(self):
-        return [Organism() for i in range(self.pop_size)]
     
     def evolve(self):
         elite = self.get_elite()
