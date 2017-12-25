@@ -57,7 +57,9 @@ class GA:  # genetic algorithm
         for t in range(self.iterations):
             i = j = 0
             while i == j: i, j = random.randint(0, self.pop_size - 1), random.randint(0, self.pop_size - 1)
-            self.organisms[i].fitness, self.organisms[j].fitness = self.compete(self.organisms[i], self.organisms[j] )
+            f1, f2 = self.compete(self.organisms[i], self.organisms[j] )
+            self.organisms[i].fitness += f1
+            self.organisms[j].fitness += f2            
             self.display_stats()
             self.evolve()
 
