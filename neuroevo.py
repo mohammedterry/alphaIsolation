@@ -48,20 +48,29 @@ class GA:  # genetic algorithm
         self.fittest = 0
         self.total = 0
 
-    def run(self, pop_size = 50, iterations = 100, elitism = .2, mutation = .1):
+    def run(self, pop_size = 50, iterations = 100, elitism = .2, pairs = False, mutation = .1):
         self.elitism = elitism
         self.pop_size = pop_size
         self.mutation = mutation
         self.iterations = iterations
         self.organisms = self.populate()
         for t in range(self.iterations):
-            i = j = 0
-            while i == j: i, j = random.randint(0, self.pop_size - 1), random.randint(0, self.pop_size - 1)
-            f1, f2 = self.compete(self.organisms[i], self.organisms[j] )
-            self.organisms[i].fitness += f1
-            self.organisms[j].fitness += f2            
+            self.tournament(pairs)
             self.display_stats()
             self.evolve()
+
+    def tournament(self, pairs):
+        if pairs: #quicker - everyone paired off
+            for i,j in zip(range(0,self.pop_size,2), range(1,self.pop_size,2)):
+                f1, f2 = self.compete(self.organisms[i], self.organisms[j] )
+                self.organisms[i].fitness += f1
+                self.organisms[j].fitness += f2
+        else: #thorough - everyone faces each other once
+            for i in range(self.pop_size):
+                for j in range(i, self.pop_size):
+                    f1, f2 = self.compete(self.organisms[i], self.organisms[j] )
+                    self.organisms[i].fitness += f1
+                    self.organisms[j].fitness += f2
 
     def populate(self):
         return [Organism() for i in range(self.pop_size)]
@@ -111,5 +120,4 @@ class GA:  # genetic algorithm
         return child1, child2
 
 
-x = GA()
-x.run()
+GA().run()
