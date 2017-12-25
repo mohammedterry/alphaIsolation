@@ -76,6 +76,7 @@ class GA:  # genetic algorithm
         return score[0], score[1]
 
     def display_stats(self):
+        self.total = 0
         for organism in self.organisms:
             if organism.fitness > self.fittest:
                 self.fittest = organism.fitness
