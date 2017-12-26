@@ -8,8 +8,8 @@ class Synapses:  #these are the neural network's weights which are to be evolved
     def sigmoid(self, x):
         return 1/(1+np.exp(-x))
 
-    def io(self, x):
-        return self.sigmoid(np.dot(self.weights, x))        
+    def f(self, values):
+        return self.sigmoid(np.dot(values, self.weights))        
 
 class Organism: #neural network
     def __init__(self, topology, probability):
@@ -29,8 +29,9 @@ class Organism: #neural network
         #input: a 1D array representing the current state of the 7x7 board  
         # & an int for the current position of player as a 1D embedded (x,y) coordinate 
         #output:   the next suggested position of the player as 1D embedded (x,y) coordinate
-        data_out = self.l1.io( self.l0.io(data_in) )
-        return data_out * 7 * 7
+        data = np.array(data_in)
+        data_out = self.l1.f( self.l0.f(data) )
+        return int(data_out * 7 * 7)
 
 class GA:  # genetic algorithm      
     def __init__(self):
@@ -64,7 +65,7 @@ class GA:  # genetic algorithm
         elite = sorted(self.organisms, key=lambda x: x.fitness, reverse=True)[:int(self.elitism * self.pop_size)]
         rest = self.reproduce(elite)
         self.organisms = elite + rest
-        
+
     def compete(self, player1, player2):
         winner, loser = Game(player1, player2).play()
         winner.fitness += 1
@@ -119,7 +120,7 @@ class Game: #game "isolation" used as the fitness function for the genetic algor
 
     def possible_moves(self):
         if self.my_location() == -1: #not moved yet - player can be placed anywhere on board thats empty to begin with
-            return [(i, j) for j in range(self.width) for i in range(self.height) if self._board_state[i + j * self.height] == 0]
+            return [(i, j) for j in range(self.width) for i in range(self.height) if self.board_state[i + j * self.height] == 0]
         (r, c) = xy(self.my_location())
         valid_moves = [(r + dr, c + dc) for dr, dc in self.directions if self.legal_move((r + dr, c + dc))]
         random.shuffle(valid_moves)
@@ -145,8 +146,8 @@ class Game: #game "isolation" used as the fitness function for the genetic algor
             data = self.board_state + [self.my_location()]
             coord = self._active_player.think(data) #neural network provides guess for next best move (x,y)
             
-            if xy(coord) not in self.possible_moves(): #illegal move - you lose! 
-                return self._inactive_player #return winning player (the other guy)
+            if self.xy(coord) not in self.possible_moves(): #illegal move - you lose! 
+                return self._inactive_player, self._active_player #return winning player (the other guy) & losing player
 
             self.apply_move(coord)
             self._active_player, self._inactive_player = self._inactive_player, self._active_player  #switch players
