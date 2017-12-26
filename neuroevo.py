@@ -61,10 +61,10 @@ class GA:  # genetic algorithm
                     self.organisms[j] = loser
     
     def evolve(self):
-        elite = self.get_elite()
+        elite = sorted(self.organisms, key=lambda x: x.fitness, reverse=True)[:int(self.elitism * self.pop_size)]
         rest = self.reproduce(elite)
         self.organisms = elite + rest
-
+        
     def compete(self, player1, player2):
         winner, loser = Game(player1, player2).play()
         winner.fitness += 1
@@ -79,10 +79,6 @@ class GA:  # genetic algorithm
             total += organism.fitness
         self.generation += 1
         print('> GEN:',self.generation,'BEST:',self.fittest,'AVG:',float(total / self.pop_size))
-
-    def get_elite(self):
-        #keep fittest percentage of organisms
-        return sorted(self.organisms, key=lambda x: x.fitness, reverse=True)[:int(self.elitism * self.pop_size)]
 
     def reproduce(self, elite):
         new_organisms = []
