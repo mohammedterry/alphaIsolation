@@ -59,6 +59,8 @@ class GA:  # genetic algorithm
         self.fittest.save()
 
     def tournament(self, pairs):
+        for organism in self.organisms:
+            organism.fitness = 0
         if pairs: #quicker - everyone paired off
             for i,j in zip(range(0,self.pop_size,2), range(1,self.pop_size,2)):
                 winner, loser = self.compete(self.organisms[i], self.organisms[j] )
@@ -66,7 +68,7 @@ class GA:  # genetic algorithm
                 self.organisms[j] = loser
         else: #thorough - everyone faces each other once
             for i in range(self.pop_size):
-                for j in range(i, self.pop_size):
+                for j in range(i, self.pop_size):                 
                     winner, loser = self.compete(self.organisms[i], self.organisms[j] )
                     self.organisms[i] = winner
                     self.organisms[j] = loser
@@ -77,19 +79,17 @@ class GA:  # genetic algorithm
         self.organisms = elite + rest
 
     def compete(self, player1, player2):
-        winner, loser = Game(player1, player2).play()
-        winner.fitness += 1
+        winner, loser, score = Game(player1, player2).play()
+        winner.fitness += score
         loser.fitness -= 1
         return winner, loser
     
     def display_stats(self):
-        total = 0
         for organism in self.organisms:
             if (self.fittest is None) or (organism.fitness > self.fittest.fitness):
                 self.fittest = organism
-            total += organism.fitness
         self.generation += 1
-        print('> GEN:',self.generation,'BEST:',self.fittest.fitness,'AVG:',float(total / self.pop_size))
+        print('> GEN:',self.generation,'BEST:',self.fittest.fitness)
 
     def reproduce(self, elite):
         new_organisms = []
@@ -112,6 +112,9 @@ class GA:  # genetic algorithm
         child2.l0.weights, child2.l1.weights = parent2.l0.weights, parent1.l1.weights
         return child1, child2
 
+class Human: #to play a game against evolved A.I.
+    def think(self, _):
+        return (int(input('> row: ')) + int(input('> column: ')) * 7)
 
 class Game: #game "isolation" used as the fitness function for the genetic algorithm
     directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2), (2, -1), (2, 1)]  #variant: players moves like a chess knight
@@ -154,20 +157,44 @@ class Game: #game "isolation" used as the fitness function for the genetic algor
 
     def play(self, history = False): 
         while True: 
-            data = self.board_state + [self.my_location()]
+            data = self.board_state + [self.p1_location, self.p2_location, self.my_location()]
             coord = self._active_player.think(data) #neural network provides guess for next best move (x,y)
             
             if self.xy(coord) not in self.possible_moves(): #illegal move - you lose! 
-                return self._inactive_player, self._active_player #return winning player (the other guy) & losing player
-
-            if history: print(self.turn, self.xy(coord))
-
+                return self._inactive_player, self._active_player, self.turn #return winning player (the other guy) & losing player
+            
             self.apply_move(coord)
+            
+            if history: 
+                print(self.turn, self.xy(coord))
+                print(self.display())
+
             self._active_player, self._inactive_player = self._inactive_player, self._active_player  #switch players
             self.turn += 1
+    
+    def display(self, symbols=['1', '2']):
+        col_margin = len(str(self.height - 1)) + 1
+        prefix = "{:<" + "{}".format(col_margin) + "}"
+        offset = " " * (col_margin + 3)
+        out = offset + '   '.join(map(str, range(self.width))) + '\n\r'
+        for i in range(self.height):
+            out += prefix.format(i) + ' | '
+            for j in range(self.width):
+                idx = i + j * self.height
+                if not self.board_state[idx]:
+                    out += ' '
+                elif self.p1_location == idx:
+                    out += symbols[0]
+                elif self.p2_location == idx:
+                    out += symbols[1]
+                else:
+                    out += '-'
+                out += ' | '
+            out += '\n\r'
+        return out
 
-
-GA().run(iterations = 1000, topology = [50, 100, 1])
-#player = Organism([50,100,1])
-#player.load()
-#Game(player, player).play(history = True)
+GA().run(iterations = 10, topology = [52, 100, 1])
+player1 = Organism([52,100,1])
+player1.load()
+player2 = Human()
+Game(player1, player2).play(history = True)
