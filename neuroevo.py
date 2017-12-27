@@ -11,8 +11,9 @@ class Synapses:  #these are the neural network's weights which are to be evolved
     def f(self, values):
         return self.sigmoid(np.dot(values, self.weights))        
 
+
 class Organism: #neural network
-    def __init__(self, topology, probability):
+    def __init__(self, topology, probability = .1):
         self.p = probability
         self.fitness = 0
         [self.input_dimension, self.hidden_dimension, self.output_dimension] = topology
@@ -33,10 +34,18 @@ class Organism: #neural network
         data_out = self.l1.f( self.l0.f(data) )
         return int(data_out * 7 * 7)
 
+    def save(self, file_name = 'evolved_nn.npy'):
+        np.save(file_name, {'l0_weights':self.l0.weights, 'l1_weights':self.l1.weights}) 
+
+    def load(self, file_name = 'evolved_nn.npy'):
+        config = np.load(file_name).item()
+        self.l0.weights = config['l0_weights']
+        self.l1.weights = config['l1_weights']
+
 class GA:  # genetic algorithm      
     def __init__(self):
         self.generation = 0
-        self.fittest = 0
+        self.fittest = None
 
     def run(self, topology = [1,3,1], pop_size = 50, iterations = 100, elitism = .2, pairs = False, mutation = .1):
         self.pop_size = pop_size
@@ -47,6 +56,7 @@ class GA:  # genetic algorithm
             self.tournament(pairs)
             self.display_stats()
             self.evolve()
+        self.fittest.save()
 
     def tournament(self, pairs):
         if pairs: #quicker - everyone paired off
@@ -75,11 +85,11 @@ class GA:  # genetic algorithm
     def display_stats(self):
         total = 0
         for organism in self.organisms:
-            if organism.fitness > self.fittest:
-                self.fittest = organism.fitness
+            if (self.fittest is None) or (organism.fitness > self.fittest.fitness):
+                self.fittest = organism
             total += organism.fitness
         self.generation += 1
-        print('> GEN:',self.generation,'BEST:',self.fittest,'AVG:',float(total / self.pop_size))
+        print('> GEN:',self.generation,'BEST:',self.fittest.fitness,'AVG:',float(total / self.pop_size))
 
     def reproduce(self, elite):
         new_organisms = []
@@ -101,6 +111,7 @@ class GA:  # genetic algorithm
         child1.l0.weights, child1.l1.weights = parent1.l0.weights, parent2.l1.weights 
         child2.l0.weights, child2.l1.weights = parent2.l0.weights, parent1.l1.weights
         return child1, child2
+
 
 class Game: #game "isolation" used as the fitness function for the genetic algorithm
     directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2), (2, -1), (2, 1)]  #variant: players moves like a chess knight
@@ -127,7 +138,7 @@ class Game: #game "isolation" used as the fitness function for the genetic algor
         return valid_moves
 
     def apply_move(self, coordinate): #1D embedded coord 
-        self._board_state[coordinate] = 1
+        self.board_state[coordinate] = 1
         if self.turn % 2 == 0: 
             self._p1_location = coordinate
         else:
@@ -141,7 +152,7 @@ class Game: #game "isolation" used as the fitness function for the genetic algor
     def xy(self, embedded): #1D embedded coordinate --> 2D x,y coordinate
         return (embedded % self.height, embedded // self.height)
 
-    def play(self): 
+    def play(self, history = False): 
         while True: 
             data = self.board_state + [self.my_location()]
             coord = self._active_player.think(data) #neural network provides guess for next best move (x,y)
@@ -149,9 +160,14 @@ class Game: #game "isolation" used as the fitness function for the genetic algor
             if self.xy(coord) not in self.possible_moves(): #illegal move - you lose! 
                 return self._inactive_player, self._active_player #return winning player (the other guy) & losing player
 
+            if history: print(self.turn, self.xy(coord))
+
             self.apply_move(coord)
             self._active_player, self._inactive_player = self._inactive_player, self._active_player  #switch players
             self.turn += 1
 
 
-GA().run(topology = [50, 100, 1])
+GA().run(iterations = 1000, topology = [50, 100, 1])
+#player = Organism([50,100,1])
+#player.load()
+#Game(player, player).play(history = True)
