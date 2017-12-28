@@ -35,7 +35,7 @@ class Organism: #neural network
         #output:   the next suggested position of the player as 1D embedded (x,y) coordinate
         data = np.array(data_in)
         data_out = self.l1.f( self.l0.f(data) )
-        return int(data_out * 7 * 7)
+        return int(data_out[0]) + int(data_out[1]) * 7
 
     def save(self, file_name = 'evolved_nn.npy'):
         np.save(file_name, {'l0_weights':self.l0.weights, 'l1_weights':self.l1.weights}) 
@@ -167,6 +167,10 @@ class Game: #game "isolation" used as the fitness function for the genetic algor
             data = self.board_state + [self.my_location()]
             coord = self._active_player.think(data) #neural network provides guess for next best move (x,y)
         
+            if self.turn %2 == 0:
+                coord = random.choice(self.possible_moves())
+                coord = coord[0] + coord[1] * self.height
+
             if self.xy(coord) not in self.possible_moves(): #illegal move - you lose! 
                 return self._inactive_player, self._active_player, self.turn #return winning player (the other guy) & losing player
             
@@ -200,8 +204,8 @@ class Game: #game "isolation" used as the fitness function for the genetic algor
             out += '\n\r'
         return out
 
-GA().run(topology = [50, 10, 1], option = 2)
-player1 = Organism([50,10,1])
+GA().run(iterations = 1000, topology = [50, 10, 2], option = 0)
+player1 = Organism([50,10,2])
 player1.load()
 player2 = Human()
 Game(player1, player2).play(history = True)
