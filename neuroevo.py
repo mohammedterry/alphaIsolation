@@ -22,9 +22,12 @@ class Organism: #neural network
     
     def mutate(self):
         if random.random() <= self.p:
-            self.l0.weights[random.randint(0, len(self.l0.weights) - 1)] = random.random()  
-        if random.random() <= self.p:
-            self.l1.weights[random.randint(0, len(self.l1.weights) - 1)] = random.random()  
+            for i in range(len(self.l0.weights) - 1):
+                if random.random() <= self.p:
+                    self.l0.weights[i] = 2*random.random() - 1.
+            for i in range(len(self.l1.weights) - 1):
+                if random.random() <= self.p:
+                    self.l1.weights[i] = 2*random.random() - 1.
 
     def think(self, data_in):
         #input: a 1D array representing the current state of the 7x7 board  
@@ -45,28 +48,32 @@ class Organism: #neural network
 class GA:  # genetic algorithm      
     def __init__(self):
         self.generation = 0
-        self.fittest = None
+        self.fittest = Organism([1,1,1], 1) 
 
-    def run(self, topology = [1,3,1], pop_size = 50, iterations = 100, elitism = .2, pairs = False, mutation = .1):
+    def run(self, topology = [1,3,1], pop_size = 50, iterations = 100, elitism = .2, option = 0, mutation = .5):
         self.pop_size = pop_size
         self.iterations = iterations
         self.elitism = elitism
         self.organisms = [Organism(topology = topology, probability = mutation) for _ in range(self.pop_size)]
         for _ in range(self.iterations):
-            self.tournament(pairs)
+            self.tournament(option)
             self.display_stats()
             self.evolve()
         self.fittest.save()
 
-    def tournament(self, pairs):
+    def tournament(self, option):
         for organism in self.organisms:
             organism.fitness = 0
-        if pairs: #quicker - everyone paired off
+        if option == 0: #each plays against a random moving bot
+            for organism in self.organisms:
+                _, loser = self.compete(organism, organism)
+                organism = loser
+        elif option == 1: #quicker - everyone paired off
             for i,j in zip(range(0,self.pop_size,2), range(1,self.pop_size,2)):
                 winner, loser = self.compete(self.organisms[i], self.organisms[j] )
                 self.organisms[i] = winner
                 self.organisms[j] = loser
-        else: #thorough - everyone faces each other once
+        elif option == 2: #thorough - everyone faces each other once
             for i in range(self.pop_size):
                 for j in range(i, self.pop_size):                 
                     winner, loser = self.compete(self.organisms[i], self.organisms[j] )
@@ -74,19 +81,19 @@ class GA:  # genetic algorithm
                     self.organisms[j] = loser
     
     def evolve(self):
-        elite = sorted(self.organisms, key=lambda x: x.fitness, reverse=True)[:int(self.elitism * self.pop_size)]
+        elite = sorted(self.organisms, key=lambda x: x.fitness)[:int(self.elitism * self.pop_size)]
         rest = self.reproduce(elite)
         self.organisms = elite + rest
 
     def compete(self, player1, player2):
         winner, loser, score = Game(player1, player2).play()
         winner.fitness += score
-        loser.fitness -= 1
+        loser.fitness -= 1 
         return winner, loser
     
     def display_stats(self):
         for organism in self.organisms:
-            if (self.fittest is None) or (organism.fitness > self.fittest.fitness):
+            if organism.fitness > self.fittest.fitness:
                 self.fittest = organism
         self.generation += 1
         print('> GEN:',self.generation,'BEST:',self.fittest.fitness)
@@ -94,7 +101,7 @@ class GA:  # genetic algorithm
     def reproduce(self, elite):
         new_organisms = []
         elite_size = int(self.elitism * self.pop_size)
-        leftover = self.pop_size - elite_size
+        leftover = self.pop_size - elite_size 
         for i in range(0,leftover,2):
             a = b = 0
             while a == b: a, b = random.randint(0, elite_size - 1), random.randint(0, elite_size - 1)
@@ -130,12 +137,12 @@ class Game: #game "isolation" used as the fitness function for the genetic algor
 
     def legal_move(self, coordinate):
         embedded = coordinate[0] + coordinate[1] * self.height  #2D x,y --> 1D
-        return (0 <= coordinate[0] < self.height and 0 <= coordinate[1] < self.width and self._board_state[embedded] == 0) #legal IF within board width, height & position is not occupeied (0)
+        return (0 <= coordinate[0] < self.height and 0 <= coordinate[1] < self.width and self.board_state[embedded] == 0) #legal IF within board width, height & position is not occupeied (0)
 
     def possible_moves(self):
         if self.my_location() == -1: #not moved yet - player can be placed anywhere on board thats empty to begin with
             return [(i, j) for j in range(self.width) for i in range(self.height) if self.board_state[i + j * self.height] == 0]
-        (r, c) = xy(self.my_location())
+        (r, c) = self.xy(self.my_location())
         valid_moves = [(r + dr, c + dc) for dr, dc in self.directions if self.legal_move((r + dr, c + dc))]
         random.shuffle(valid_moves)
         return valid_moves
@@ -143,9 +150,9 @@ class Game: #game "isolation" used as the fitness function for the genetic algor
     def apply_move(self, coordinate): #1D embedded coord 
         self.board_state[coordinate] = 1
         if self.turn % 2 == 0: 
-            self._p1_location = coordinate
+            self.p1_location = coordinate
         else:
-            self._p2_location = coordinate
+            self.p2_location = coordinate
 
     def my_location(self):
         if self.turn % 2 == 0: #even turn means its player1's turn
@@ -157,9 +164,9 @@ class Game: #game "isolation" used as the fitness function for the genetic algor
 
     def play(self, history = False): 
         while True: 
-            data = self.board_state + [self.p1_location, self.p2_location, self.my_location()]
+            data = self.board_state + [self.my_location()]
             coord = self._active_player.think(data) #neural network provides guess for next best move (x,y)
-            
+        
             if self.xy(coord) not in self.possible_moves(): #illegal move - you lose! 
                 return self._inactive_player, self._active_player, self.turn #return winning player (the other guy) & losing player
             
@@ -172,7 +179,7 @@ class Game: #game "isolation" used as the fitness function for the genetic algor
             self._active_player, self._inactive_player = self._inactive_player, self._active_player  #switch players
             self.turn += 1
     
-    def display(self, symbols=['1', '2']):
+    def display(self, symbols=['x', 'o']):
         col_margin = len(str(self.height - 1)) + 1
         prefix = "{:<" + "{}".format(col_margin) + "}"
         offset = " " * (col_margin + 3)
@@ -193,8 +200,8 @@ class Game: #game "isolation" used as the fitness function for the genetic algor
             out += '\n\r'
         return out
 
-GA().run(iterations = 10, topology = [52, 100, 1])
-player1 = Organism([52,100,1])
+GA().run(topology = [50, 10, 1], option = 2)
+player1 = Organism([50,10,1])
 player1.load()
 player2 = Human()
 Game(player1, player2).play(history = True)
